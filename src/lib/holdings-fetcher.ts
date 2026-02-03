@@ -5,6 +5,9 @@ import {
   type FundHoldingRow,
 } from './db';
 import type { FundHolding } from '@/types';
+import YahooFinanceConstructor from 'yahoo-finance2';
+
+const yahooFinance = new YahooFinanceConstructor({ suppressNotices: ['yahooSurvey'] });
 
 interface FinnhubHolding {
   symbol?: string;
@@ -34,6 +37,42 @@ interface MorningstarPortfolioResponse {
     NumberOfShare?: number;
     MarketValue?: number;
   }>;
+}
+
+// Fetch holdings from Yahoo Finance API
+export async function fetchYahooHoldings(symbol: string): Promise<{
+  holdings: FundHolding[];
+  asOfDate: string;
+} | null> {
+  try {
+    // Add .L suffix for London-listed securities if not present
+    const yahooSymbol = symbol.includes('.L') ? symbol : `${symbol}.L`;
+
+    const result = await yahooFinance.quoteSummary(yahooSymbol, {
+      modules: ['topHoldings']
+    });
+
+    if (!result.topHoldings?.holdings || result.topHoldings.holdings.length === 0) {
+      console.warn(`No holdings data from Yahoo Finance for ${yahooSymbol}`);
+      return null;
+    }
+
+    const holdings: FundHolding[] = result.topHoldings.holdings.map((h) => ({
+      symbol: h.symbol,
+      name: h.holdingName,
+      assetType: 'Equity',
+      weightPercent: h.holdingPercent * 100, // Convert decimal to percentage
+    }));
+
+    // Yahoo Finance doesn't provide an as-of date, use today
+    const asOfDate = new Date().toISOString().split('T')[0];
+
+    console.log(`Successfully fetched ${holdings.length} holdings from Yahoo Finance for ${symbol}`);
+    return { holdings, asOfDate };
+  } catch (error) {
+    console.error(`Error fetching Yahoo Finance holdings for ${symbol}:`, error);
+    return null;
+  }
 }
 
 // Fetch holdings from Finnhub API
@@ -168,23 +207,19 @@ export async function fetchHoldingsWithFallback(
   holdings: FundHolding[];
   asOfDate: string;
 } | null> {
-  // For UK-based portfolio with ii.co.uk, prioritize Morningstar for all funds
-  // (Finnhub free tier is US-only and won't have London-listed ETFs)
+  // Try Yahoo Finance first (free, good coverage for ETFs and investment trusts)
+  console.log(`Fetching holdings for ${symbol} from Yahoo Finance`);
+  const yahooResult = await fetchYahooHoldings(symbol);
+  if (yahooResult) {
+    return yahooResult;
+  }
+
+  // Fall back to Morningstar for OEICs if Yahoo doesn't have data
   if (options?.morningstarId) {
-    console.log(`Fetching holdings for ${symbol} from Morningstar`);
+    console.log(`Trying Morningstar for ${symbol}`);
     const morningstarResult = await fetchMorningstarHoldings(options.morningstarId);
     if (morningstarResult) {
       return morningstarResult;
-    }
-  }
-
-  // Only try Finnhub if explicitly requested and API key is configured
-  // (Most users won't need this for UK portfolios)
-  if (options?.isETF && process.env.FINNHUB_API_KEY && process.env.FINNHUB_API_KEY !== 'your_api_key_here') {
-    console.log(`Trying Finnhub for ${symbol} (US ETF)`);
-    const finnhubResult = await fetchFinnhubHoldings(symbol);
-    if (finnhubResult) {
-      return finnhubResult;
     }
   }
 
