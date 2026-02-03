@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, TrendingUp, TrendingDown, Info } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { SummaryCard } from '@/components/ui/summary-card';
 import { LoadingSpinner } from '@/components/ui/loading';
+import { DateRangeFilter } from '@/components/ui/date-range-filter';
 import { FundValueChart } from '@/components/charts/fund-value-chart';
 import { HoldingsPieChart } from '@/components/charts/holdings-pie-chart';
 import { HoldingsCompositionTable } from '@/components/tables/holdings-composition-table';
@@ -34,6 +35,10 @@ export default function FundPage() {
   const [fund, setFund] = useState<FundData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState<{ start: string | null; end: string | null }>({
+    start: null,
+    end: null,
+  });
 
   useEffect(() => {
     async function fetchFund() {
@@ -88,6 +93,16 @@ export default function FundPage() {
   const formatPercent = (value: number) => {
     const sign = value >= 0 ? '+' : '';
     return `${sign}${value.toFixed(2)}%`;
+  };
+
+  // Filter value history based on date range
+  const filteredValueHistory = useMemo(() => {
+    if (!fund?.valueHistory || !dateRange.start) return fund?.valueHistory ?? [];
+    return fund.valueHistory.filter((v) => v.date >= dateRange.start!);
+  }, [fund?.valueHistory, dateRange.start]);
+
+  const handleDateRangeChange = (start: string | null, end: string | null) => {
+    setDateRange({ start, end });
   };
 
   if (loading) {
@@ -203,17 +218,25 @@ export default function FundPage() {
 
       {/* Value History Chart */}
       {fund.valueHistory.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Position Value Over Time</CardTitle>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              Your investment value based on {fund.quantity.toLocaleString('en-GB', { maximumFractionDigits: 4 })} units
-            </p>
-          </CardHeader>
-          <CardContent>
-            <FundValueChart data={fund.valueHistory} bookCost={fund.bookCost} />
-          </CardContent>
-        </Card>
+        <>
+          {/* Date Range Filter */}
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-500 dark:text-gray-400">Time period:</span>
+            <DateRangeFilter onRangeChange={handleDateRangeChange} />
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Position Value Over Time</CardTitle>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Your investment value based on {fund.quantity.toLocaleString('en-GB', { maximumFractionDigits: 4 })} units
+              </p>
+            </CardHeader>
+            <CardContent>
+              <FundValueChart data={filteredValueHistory} bookCost={fund.bookCost} />
+            </CardContent>
+          </Card>
+        </>
       )}
 
       {/* Performance Summary */}
