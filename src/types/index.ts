@@ -43,3 +43,23 @@ export interface FundDetail {
   priceHistory: Array<{ date: string; price: number }>;
   valueHistory: Array<{ date: string; value: number }>;
 }
+
+export interface FundHolding {
+  symbol?: string;
+  name: string;
+  cusip?: string;
+  isin?: string;
+  assetType?: string;
+  weightPercent: number;
+  sharesHeld?: number;
+  marketValue?: number;
+}
+
+export interface FundHoldingsData {
+  fundSymbol: string;
+  fundName: string;
+  asOfDate: string;
+  numberOfHoldings: number;
+  holdings: FundHolding[];
+  topHoldings: FundHolding[];
+}

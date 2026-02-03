@@ -9,6 +9,9 @@ import { SummaryCard } from '@/components/ui/summary-card';
 import { LoadingSpinner } from '@/components/ui/loading';
 import { FundPriceChart } from '@/components/charts/fund-price-chart';
 import { FundValueChart } from '@/components/charts/fund-value-chart';
+import { HoldingsPieChart } from '@/components/charts/holdings-pie-chart';
+import { HoldingsCompositionTable } from '@/components/tables/holdings-composition-table';
+import type { FundHoldingsData } from '@/types';
 
 interface FundData {
   symbol: string;
@@ -23,6 +26,7 @@ interface FundData {
   hasYahooSymbol: boolean;
   priceHistory: Array<{ date: string; price: number }>;
   valueHistory: Array<{ date: string; value: number }>;
+  holdingsData?: FundHoldingsData | null;
 }
 
 export default function FundPage() {
@@ -44,7 +48,24 @@ export default function FundPage() {
           throw new Error('Failed to fetch fund data');
         }
         const data = await response.json();
-        setFund(data);
+
+        // Fetch holdings data separately (non-blocking)
+        let holdingsData = null;
+        try {
+          const holdingsResponse = await fetch(`/api/funds/${encodeURIComponent(symbol)}/holdings`);
+          if (holdingsResponse.ok) {
+            holdingsData = await holdingsResponse.json();
+            // Only include if we have actual holdings
+            if (holdingsData?.holdings?.length === 0) {
+              holdingsData = null;
+            }
+          }
+        } catch (holdingsErr) {
+          console.warn('Failed to fetch holdings data:', holdingsErr);
+          // Don't fail the whole page if holdings fetch fails
+        }
+
+        setFund({ ...data, holdingsData });
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
       } finally {
@@ -189,6 +210,41 @@ export default function FundPage() {
           </CardHeader>
           <CardContent>
             <FundValueChart data={fund.valueHistory} bookCost={fund.bookCost} />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Holdings Composition - Pie Chart */}
+      {fund.holdingsData && fund.holdingsData.holdings.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Portfolio Composition</CardTitle>
+            {fund.holdingsData.asOfDate && (
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                As of {new Date(fund.holdingsData.asOfDate).toLocaleDateString('en-GB', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                })}
+              </p>
+            )}
+          </CardHeader>
+          <CardContent>
+            <HoldingsPieChart holdings={fund.holdingsData.holdings} showTopN={10} />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Top Holdings Table */}
+      {fund.holdingsData && fund.holdingsData.holdings.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              Top Holdings ({fund.holdingsData.numberOfHoldings} total)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <HoldingsCompositionTable data={fund.holdingsData.holdings} />
           </CardContent>
         </Card>
       )}
