@@ -174,8 +174,8 @@ export default function ImportPage() {
                   Drag and drop your CSV file here
                 </p>
                 <p className="text-gray-500 dark:text-gray-400 mb-4">or</p>
-                <label className="cursor-pointer">
-                  <Button>Browse Files</Button>
+                <label className="cursor-pointer inline-flex items-center justify-center font-medium rounded-lg transition-colors px-4 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700">
+                  Browse Files
                   <input
                     type="file"
                     accept=".csv"
