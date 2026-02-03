@@ -102,16 +102,27 @@ export async function fetchMorningstarHoldings(morningstarId: string): Promise<{
   asOfDate: string;
 } | null> {
   try {
-    // Morningstar portfolio endpoint
-    const extendedId = `${morningstarId}]2]1]FOGBR$$ALL`;
-    const url = `https://tools.morningstar.co.uk/api/rest.svc/9vehuxllxs/security/portfolio?id=${encodeURIComponent(extendedId)}`;
+    // Try with extended ID format first (for OEICs)
+    let url = `https://tools.morningstar.co.uk/api/rest.svc/9vehuxllxs/security/portfolio?id=${encodeURIComponent(morningstarId + ']2]1]FOGBR$$ALL')}`;
 
-    const response = await fetch(url, {
+    let response = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         Accept: 'application/json',
       },
     });
+
+    // If 404, try without extended format (for ETFs)
+    if (response.status === 404) {
+      console.log(`Trying alternative format for ${morningstarId}`);
+      url = `https://tools.morningstar.co.uk/api/rest.svc/9vehuxllxs/security/portfolio?id=${encodeURIComponent(morningstarId)}`;
+      response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          Accept: 'application/json',
+        },
+      });
+    }
 
     if (!response.ok) {
       console.error(`Morningstar portfolio API error for ${morningstarId}: ${response.status}`);
@@ -157,42 +168,27 @@ export async function fetchHoldingsWithFallback(
   holdings: FundHolding[];
   asOfDate: string;
 } | null> {
-  // Determine if this is a UK/international fund (has .L suffix or long symbol)
-  const isUKFund = symbol.includes('.L') || symbol.length > 6;
-
-  // For UK funds, use Morningstar exclusively (Finnhub free tier is US-only)
-  if (isUKFund) {
-    if (options?.morningstarId) {
-      console.log(`Fetching holdings for ${symbol} from Morningstar (UK fund)`);
-      const morningstarResult = await fetchMorningstarHoldings(options.morningstarId);
-      if (morningstarResult) {
-        return morningstarResult;
-      }
-    } else {
-      console.warn(`No Morningstar ID available for UK fund ${symbol} - cannot fetch holdings`);
-    }
-    return null; // Don't try Finnhub for UK funds
-  }
-
-  // For US funds, try Finnhub first (free tier covers US ETFs)
-  if (process.env.FINNHUB_API_KEY && process.env.FINNHUB_API_KEY !== 'your_api_key_here') {
-    console.log(`Fetching holdings for ${symbol} from Finnhub (US fund)`);
-    const finnhubResult = await fetchFinnhubHoldings(symbol);
-    if (finnhubResult) {
-      return finnhubResult;
-    }
-  }
-
-  // Try Morningstar as fallback for US funds
+  // For UK-based portfolio with ii.co.uk, prioritize Morningstar for all funds
+  // (Finnhub free tier is US-only and won't have London-listed ETFs)
   if (options?.morningstarId) {
-    console.log(`Fetching holdings for ${symbol} from Morningstar (fallback)`);
+    console.log(`Fetching holdings for ${symbol} from Morningstar`);
     const morningstarResult = await fetchMorningstarHoldings(options.morningstarId);
     if (morningstarResult) {
       return morningstarResult;
     }
   }
 
-  console.warn(`No holdings data source available for ${symbol}`);
+  // Only try Finnhub if explicitly requested and API key is configured
+  // (Most users won't need this for UK portfolios)
+  if (options?.isETF && process.env.FINNHUB_API_KEY && process.env.FINNHUB_API_KEY !== 'your_api_key_here') {
+    console.log(`Trying Finnhub for ${symbol} (US ETF)`);
+    const finnhubResult = await fetchFinnhubHoldings(symbol);
+    if (finnhubResult) {
+      return finnhubResult;
+    }
+  }
+
+  console.warn(`No holdings data available for ${symbol}`);
   return null;
 }
 

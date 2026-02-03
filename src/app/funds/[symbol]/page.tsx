@@ -3,11 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, TrendingUp, TrendingDown } from 'lucide-react';
+import { ArrowLeft, TrendingUp, TrendingDown, Info } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { SummaryCard } from '@/components/ui/summary-card';
 import { LoadingSpinner } from '@/components/ui/loading';
-import { FundPriceChart } from '@/components/charts/fund-price-chart';
 import { FundValueChart } from '@/components/charts/fund-value-chart';
 import { HoldingsPieChart } from '@/components/charts/holdings-pie-chart';
 import { HoldingsCompositionTable } from '@/components/tables/holdings-composition-table';
@@ -118,6 +117,7 @@ export default function FundPage() {
   }
 
   const isPositive = fund.gainLoss >= 0;
+  const avgCostPerUnit = fund.bookCost / fund.quantity;
 
   return (
     <div className="space-y-8">
@@ -132,7 +132,12 @@ export default function FundPage() {
         </Link>
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{fund.name}</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">{fund.symbol}</p>
+          <div className="flex items-center gap-4 mt-2">
+            <p className="text-gray-600 dark:text-gray-400">{fund.symbol}</p>
+            {fund.sedol && (
+              <p className="text-sm text-gray-500 dark:text-gray-500">SEDOL: {fund.sedol}</p>
+            )}
+          </div>
         </div>
       </div>
 
@@ -146,6 +151,7 @@ export default function FundPage() {
         <SummaryCard
           title="Book Cost"
           value={formatCurrency(fund.bookCost)}
+          subtitle={`Avg: ${formatCurrency(avgCostPerUnit)}/unit`}
         />
         <SummaryCard
           title="Gain/Loss"
@@ -156,63 +162,9 @@ export default function FundPage() {
         <SummaryCard
           title="Units Held"
           value={fund.quantity.toLocaleString('en-GB', { maximumFractionDigits: 4 })}
+          subtitle={fund.currentPrice > 0 ? `@ ${formatCurrency(fund.currentPrice)}` : ''}
         />
       </div>
-
-      {/* Performance indicator */}
-      <Card>
-        <CardContent className="py-4">
-          <div className="flex items-center gap-4">
-            {isPositive ? (
-              <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-full">
-                <TrendingUp className="w-6 h-6 text-green-600 dark:text-green-400" />
-              </div>
-            ) : (
-              <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-full">
-                <TrendingDown className="w-6 h-6 text-red-600 dark:text-red-400" />
-              </div>
-            )}
-            <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Current Performance</p>
-              <p className={`text-lg font-semibold ${isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                {formatPercent(fund.gainLossPercent)} ({formatCurrency(fund.gainLoss)})
-              </p>
-            </div>
-            {fund.currentPrice > 0 && (
-              <div className="ml-auto text-right">
-                <p className="text-sm text-gray-500 dark:text-gray-400">Current Price</p>
-                <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                  {formatCurrency(fund.currentPrice)}
-                </p>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Price History Chart */}
-      {fund.priceHistory.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Price History</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <FundPriceChart data={fund.priceHistory} />
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Value History Chart */}
-      {fund.valueHistory.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Your Position Value Over Time</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <FundValueChart data={fund.valueHistory} bookCost={fund.bookCost} />
-          </CardContent>
-        </Card>
-      )}
 
       {/* Holdings Composition - Pie Chart */}
       {fund.holdingsData && fund.holdingsData.holdings.length > 0 && (
@@ -240,7 +192,7 @@ export default function FundPage() {
         <Card>
           <CardHeader>
             <CardTitle>
-              Top Holdings ({fund.holdingsData.numberOfHoldings} total)
+              Holdings Breakdown ({fund.holdingsData.numberOfHoldings} total)
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -249,13 +201,67 @@ export default function FundPage() {
         </Card>
       )}
 
+      {/* Value History Chart */}
+      {fund.valueHistory.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Position Value Over Time</CardTitle>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              Your investment value based on {fund.quantity.toLocaleString('en-GB', { maximumFractionDigits: 4 })} units
+            </p>
+          </CardHeader>
+          <CardContent>
+            <FundValueChart data={fund.valueHistory} bookCost={fund.bookCost} />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Performance Summary */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Performance Summary</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-4">
+            {isPositive ? (
+              <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-full">
+                <TrendingUp className="w-6 h-6 text-green-600 dark:text-green-400" />
+              </div>
+            ) : (
+              <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-full">
+                <TrendingDown className="w-6 h-6 text-red-600 dark:text-red-400" />
+              </div>
+            )}
+            <div className="flex-1">
+              <p className="text-sm text-gray-500 dark:text-gray-400">Total Return</p>
+              <p className={`text-2xl font-bold ${isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                {formatPercent(fund.gainLossPercent)}
+              </p>
+              <p className={`text-lg ${isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                {formatCurrency(fund.gainLoss)}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-sm text-gray-500 dark:text-gray-400">Current Value</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                {formatCurrency(fund.marketValue)}
+              </p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Invested: {formatCurrency(fund.bookCost)}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* No price data message */}
       {fund.priceHistory.length === 0 && (
         <Card>
           <CardContent className="py-8">
-            <p className="text-center text-gray-500 dark:text-gray-400">
-              Historical price data is not available for this fund.
-            </p>
+            <div className="flex items-center justify-center gap-3 text-gray-500 dark:text-gray-400">
+              <Info className="w-5 h-5" />
+              <p>Historical price data is not available for this fund.</p>
+            </div>
           </CardContent>
         </Card>
       )}
