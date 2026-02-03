@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { SummaryCard } from '@/components/ui/summary-card';
 import { PortfolioChart } from '@/components/charts/portfolio-chart';
+import { PortfolioAllocationChart } from '@/components/charts/portfolio-allocation-chart';
 import { FundsBreakdownChart } from '@/components/charts/funds-breakdown-chart';
 import { HoldingsTable } from '@/components/tables/holdings-table';
 import { LoadingSpinner } from '@/components/ui/loading';
@@ -204,6 +205,16 @@ export default function HomePage() {
           />
         </div>
       )}
+
+      {/* Portfolio Allocation Pie Chart */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Portfolio Allocation by Fund</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <PortfolioAllocationChart holdings={holdings} />
+        </CardContent>
+      </Card>
 
       {/* Date Range Filter */}
       <div className="flex items-center justify-between">
