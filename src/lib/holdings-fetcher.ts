@@ -157,33 +157,42 @@ export async function fetchHoldingsWithFallback(
   holdings: FundHolding[];
   asOfDate: string;
 } | null> {
-  // Determine if this is likely an ETF based on symbol length (2-4 chars typically)
-  const isLikelyETF = options?.isETF ?? symbol.replace('.L', '').length <= 4;
+  // Determine if this is a UK/international fund (has .L suffix or long symbol)
+  const isUKFund = symbol.includes('.L') || symbol.length > 6;
 
-  // Try Finnhub first for ETFs
-  if (isLikelyETF) {
+  // For UK funds, use Morningstar exclusively (Finnhub free tier is US-only)
+  if (isUKFund) {
+    if (options?.morningstarId) {
+      console.log(`Fetching holdings for ${symbol} from Morningstar (UK fund)`);
+      const morningstarResult = await fetchMorningstarHoldings(options.morningstarId);
+      if (morningstarResult) {
+        return morningstarResult;
+      }
+    } else {
+      console.warn(`No Morningstar ID available for UK fund ${symbol} - cannot fetch holdings`);
+    }
+    return null; // Don't try Finnhub for UK funds
+  }
+
+  // For US funds, try Finnhub first (free tier covers US ETFs)
+  if (process.env.FINNHUB_API_KEY && process.env.FINNHUB_API_KEY !== 'your_api_key_here') {
+    console.log(`Fetching holdings for ${symbol} from Finnhub (US fund)`);
     const finnhubResult = await fetchFinnhubHoldings(symbol);
     if (finnhubResult) {
       return finnhubResult;
     }
   }
 
-  // Try Morningstar if morningstarId is available
+  // Try Morningstar as fallback for US funds
   if (options?.morningstarId) {
+    console.log(`Fetching holdings for ${symbol} from Morningstar (fallback)`);
     const morningstarResult = await fetchMorningstarHoldings(options.morningstarId);
     if (morningstarResult) {
       return morningstarResult;
     }
   }
 
-  // Try Finnhub as last resort for non-ETFs
-  if (!isLikelyETF) {
-    const finnhubResult = await fetchFinnhubHoldings(symbol);
-    if (finnhubResult) {
-      return finnhubResult;
-    }
-  }
-
+  console.warn(`No holdings data source available for ${symbol}`);
   return null;
 }
 

@@ -32,15 +32,24 @@ The fund holdings feature has been successfully implemented! This feature adds u
 
 ## Setup Instructions
 
-### 1. Get Finnhub API Key
+### 1. Understanding Data Sources
 
-The free tier is sufficient for this feature:
+**Important**: Finnhub's free tier only covers **US market ETFs**. Since this is a UK portfolio tracker, most funds will use Morningstar as the primary data source.
+
+**Data source priority:**
+- **UK funds** (.L suffix or long symbols): Morningstar (primary) → Finnhub (fallback)
+- **US funds** (short symbols): Finnhub (primary) → Morningstar (fallback)
+
+### 2. Get Finnhub API Key (Optional for US ETFs)
+
+Only needed if you plan to add US-listed ETFs to your portfolio:
 - Visit: https://finnhub.io/register
 - Sign up for a free account
 - Copy your API key from the dashboard
-- Free tier limits: 30 calls/sec, 60 calls/min (plenty for 9 funds)
+- Free tier limits: 30 calls/sec, 60 calls/min
+- **Free tier coverage**: US market only
 
-### 2. Configure Environment
+### 3. Configure Environment
 
 Edit `.env.local` (already created) and add your API key:
 
@@ -48,7 +57,7 @@ Edit `.env.local` (already created) and add your API key:
 FINNHUB_API_KEY=your_actual_api_key_here
 ```
 
-**Important**: The app will still work without this key, but holdings data won't be fetched. Morningstar fallback will be attempted for funds with Morningstar IDs.
+**Important**: The app will work without this key for UK funds. Morningstar will be used automatically for funds with Morningstar IDs (which are auto-detected from ISINs).
 
 ### 3. Start Development Server
 
@@ -75,13 +84,17 @@ You should see two new sections:
 
 ### Data Sources
 
-1. **ETFs** (IWRD, IJPH, SMT): Finnhub API
-   - Usually has 100-2700+ holdings
-   - Updates available daily
+1. **UK/International Funds** (IWRD.L, IJPH.L, SMT.L, UK OEICs): Morningstar API (primary)
+   - Covers UK-listed ETFs and OEICs
+   - Automatically uses funds' Morningstar IDs
+   - Typically 50-2700+ holdings depending on fund
+   - Updates available regularly
 
-2. **UK OEICs** (BlackRock, Fidelity, Vanguard): Morningstar API
-   - Typically 50-200 holdings
-   - Uses existing Morningstar integration
+2. **US ETFs** (if added to portfolio): Finnhub API
+   - Only covers US market (not London-listed)
+   - Free tier limitation: US stocks only
+   - Usually has 100-3000+ holdings
+   - Updates available daily
 
 ### Caching Strategy
 
@@ -107,8 +120,8 @@ You should see two new sections:
 - [ ] Verify sorting works (click column headers)
 
 ### Different Fund Types
-- [ ] Test ETF: IWRD (should use Finnhub)
-- [ ] Test Investment Trust: SMT (should use Finnhub)
+- [ ] Test ETF: IWRD (should use Morningstar via ISIN)
+- [ ] Test Investment Trust: SMT (should use Morningstar)
 - [ ] Test UK OEIC: B4VY989 (should use Morningstar if ID available)
 
 ### Cache Behavior
@@ -136,33 +149,39 @@ sqlite3 data/portfolio.db "SELECT fund_symbol, as_of_date, fetched_at FROM fund_
 
 ## Expected Results
 
-### IWRD (iShares MSCI World ETF)
+### IWRD.L (iShares MSCI World ETF - London-listed)
 - ~2700 holdings (global stocks)
 - Top holding: Usually Apple, Microsoft, or similar
 - Mix of US, European, and Asian companies
+- **Data source**: Morningstar (via ISIN auto-detection)
 
-### IJPH (iShares MSCI Japan ETF)
+### IJPH.L (iShares MSCI Japan ETF - London-listed)
 - ~300 holdings (Japanese stocks)
 - Top holdings: Toyota, Sony, Keyence, etc.
+- **Data source**: Morningstar
 
 ### SMT (Scottish Mortgage Investment Trust)
 - ~80 holdings (growth companies)
 - Top holdings: Tesla, ASML, Amazon, etc.
+- **Data source**: Morningstar
 
 ### UK OEICs (Various)
 - 50-200 holdings each
 - Depends on fund strategy and provider
+- **Data source**: Morningstar
 
 ## Troubleshooting
 
 ### No holdings data showing
-1. Check API key is set in `.env.local`
-2. Restart dev server after adding API key
+1. Check if fund has Morningstar ID (check browser console logs)
+2. Verify fund's ISIN is present in database (Morningstar auto-detects from ISIN)
 3. Check browser console for errors
 4. Check terminal logs for API errors
+5. If using US ETFs: Check Finnhub API key is set in `.env.local`
 
 ### API rate limit errors
-- Free tier: 30 calls/sec, 60 calls/min
+- Morningstar: No documented rate limits (public API)
+- Finnhub free tier: 30 calls/sec, 60 calls/min
 - Should not happen with current implementation (500ms delays)
 - Wait a minute and try again
 
@@ -178,18 +197,26 @@ sqlite3 data/portfolio.db "SELECT fund_symbol, as_of_date, fetched_at FROM fund_
 
 ## API Usage & Costs
 
-### Finnhub Free Tier
+### Morningstar API (Primary)
+- **Cost**: Free (public API)
+- No authentication required
+- No documented rate limits
+- Covers UK/EU funds and ETFs
+- Holdings data updates regularly
+
+### Finnhub Free Tier (Optional - US ETFs only)
+- **Cost**: Free tier available
 - 60 API calls/minute
 - 30 API calls/second
-- Sufficient for personal use
-- Holdings data updates daily
+- **Limitation**: US market data only
+- Only needed if you add US ETFs to portfolio
 
 ### Current Usage Pattern
-- Initial fetch: 1 call per fund = 9 calls total
+- Initial fetch: 1 call per fund = 9 calls total (to Morningstar)
 - Subsequent fetches: 0 calls (cached for 7 days)
 - Monthly usage: ~40 calls (assuming weekly checks)
 
-**Cost**: $0/month (well within free tier)
+**Total Cost**: $0/month
 
 ## Next Steps (Future Enhancements)
 
