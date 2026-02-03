@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, TrendingUp, TrendingDown, Info } from 'lucide-react';
+import { ArrowLeft, Info } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { SummaryCard } from '@/components/ui/summary-card';
 import { LoadingSpinner } from '@/components/ui/loading';
@@ -238,44 +238,6 @@ export default function FundPage() {
           </Card>
         </>
       )}
-
-      {/* Performance Summary */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Performance Summary</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-4">
-            {isPositive ? (
-              <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-full">
-                <TrendingUp className="w-6 h-6 text-green-600 dark:text-green-400" />
-              </div>
-            ) : (
-              <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-full">
-                <TrendingDown className="w-6 h-6 text-red-600 dark:text-red-400" />
-              </div>
-            )}
-            <div className="flex-1">
-              <p className="text-sm text-gray-500 dark:text-gray-400">Total Return</p>
-              <p className={`text-2xl font-bold ${isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                {formatPercent(fund.gainLossPercent)}
-              </p>
-              <p className={`text-lg ${isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                {formatCurrency(fund.gainLoss)}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-sm text-gray-500 dark:text-gray-400">Current Value</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {formatCurrency(fund.marketValue)}
-              </p>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Invested: {formatCurrency(fund.bookCost)}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* No price data message */}
       {fund.priceHistory.length === 0 && (
