@@ -10,11 +10,8 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { format, parseISO } from 'date-fns';
-
-interface PricePoint {
-  date: string;
-  price: number;
-}
+import type { PricePoint } from '@/types';
+import { formatCurrency, getTrendColor, EmptyStates } from '@/lib/utils';
 
 interface FundPriceChartProps {
   data: PricePoint[];
@@ -22,21 +19,8 @@ interface FundPriceChartProps {
 
 export function FundPriceChart({ data }: FundPriceChartProps) {
   if (!data || data.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-64 text-gray-500 dark:text-gray-400">
-        No price data available
-      </div>
-    );
+    return <EmptyStates.noPriceData />;
   }
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-GB', {
-      style: 'currency',
-      currency: 'GBP',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value);
-  };
 
   const formatDate = (dateStr: string) => {
     try {
@@ -49,7 +33,8 @@ export function FundPriceChart({ data }: FundPriceChartProps) {
   // Calculate if overall trend is positive
   const firstPrice = data[0]?.price || 0;
   const lastPrice = data[data.length - 1]?.price || 0;
-  const isPositive = lastPrice >= firstPrice;
+  const priceChange = lastPrice - firstPrice;
+  const chartColor = getTrendColor(priceChange);
 
   return (
     <ResponsiveContainer width="100%" height={300}>
@@ -68,7 +53,7 @@ export function FundPriceChart({ data }: FundPriceChartProps) {
           domain={['auto', 'auto']}
         />
         <Tooltip
-          formatter={(value) => [formatCurrency(Number(value)), 'Price']}
+          formatter={(value) => [formatCurrency(Number(value), { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 'Price']}
           labelFormatter={(label) => {
             try {
               return format(parseISO(String(label)), 'dd MMM yyyy');
@@ -85,7 +70,7 @@ export function FundPriceChart({ data }: FundPriceChartProps) {
         <Line
           type="monotone"
           dataKey="price"
-          stroke={isPositive ? '#10b981' : '#ef4444'}
+          stroke={chartColor}
           strokeWidth={2}
           dot={false}
         />

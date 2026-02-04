@@ -11,6 +11,7 @@ import {
 } from 'recharts';
 import { format, parseISO } from 'date-fns';
 import type { PortfolioHistoryPoint } from '@/types';
+import { formatCurrency, getTrendColor, ChartEmptyState } from '@/lib/utils';
 
 interface PortfolioChartProps {
   data: PortfolioHistoryPoint[];
@@ -18,21 +19,8 @@ interface PortfolioChartProps {
 
 export function PortfolioChart({ data }: PortfolioChartProps) {
   if (!data || data.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-64 text-gray-500 dark:text-gray-400">
-        No portfolio data available
-      </div>
-    );
+    return <ChartEmptyState message="No portfolio data available" />;
   }
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-GB', {
-      style: 'currency',
-      currency: 'GBP',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  };
 
   const formatDate = (dateStr: string) => {
     try {
@@ -45,7 +33,8 @@ export function PortfolioChart({ data }: PortfolioChartProps) {
   // Calculate gain/loss for coloring
   const latestValue = data[data.length - 1]?.value || 0;
   const latestInvested = data[data.length - 1]?.invested || 0;
-  const isPositive = latestValue >= latestInvested;
+  const gainLoss = latestValue - latestInvested;
+  const chartColor = getTrendColor(gainLoss);
 
   // Calculate Y-axis domain with padding to better show value changes
   const values = data.map(d => d.value);
@@ -61,8 +50,8 @@ export function PortfolioChart({ data }: PortfolioChartProps) {
       <AreaChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
         <defs>
           <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor={isPositive ? "#10b981" : "#ef4444"} stopOpacity={0.3}/>
-            <stop offset="95%" stopColor={isPositive ? "#10b981" : "#ef4444"} stopOpacity={0}/>
+            <stop offset="5%" stopColor={chartColor} stopOpacity={0.3}/>
+            <stop offset="95%" stopColor={chartColor} stopOpacity={0}/>
           </linearGradient>
         </defs>
         <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
@@ -96,7 +85,7 @@ export function PortfolioChart({ data }: PortfolioChartProps) {
         <Area
           type="monotone"
           dataKey="value"
-          stroke={isPositive ? "#10b981" : "#ef4444"}
+          stroke={chartColor}
           strokeWidth={2}
           fillOpacity={1}
           fill="url(#colorValue)"
