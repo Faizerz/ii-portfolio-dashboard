@@ -11,6 +11,7 @@ import {
   ReferenceLine,
 } from 'recharts';
 import { format, parseISO } from 'date-fns';
+import { formatCurrency, getTrendColor, ChartEmptyState } from '@/lib/utils';
 
 interface ValuePoint {
   date: string;
@@ -24,21 +25,8 @@ interface FundValueChartProps {
 
 export function FundValueChart({ data, bookCost }: FundValueChartProps) {
   if (!data || data.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-64 text-gray-500 dark:text-gray-400">
-        No value data available
-      </div>
-    );
+    return <ChartEmptyState message="No value data available" />;
   }
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-GB', {
-      style: 'currency',
-      currency: 'GBP',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  };
 
   const formatDate = (dateStr: string) => {
     try {
@@ -50,15 +38,16 @@ export function FundValueChart({ data, bookCost }: FundValueChartProps) {
 
   // Calculate if current value is above book cost
   const currentValue = data[data.length - 1]?.value || 0;
-  const isPositive = currentValue >= bookCost;
+  const gainLoss = currentValue - bookCost;
+  const chartColor = getTrendColor(gainLoss);
 
   return (
     <ResponsiveContainer width="100%" height={300}>
       <AreaChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
         <defs>
           <linearGradient id="colorFundValue" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor={isPositive ? '#10b981' : '#ef4444'} stopOpacity={0.3} />
-            <stop offset="95%" stopColor={isPositive ? '#10b981' : '#ef4444'} stopOpacity={0} />
+            <stop offset="5%" stopColor={chartColor} stopOpacity={0.3} />
+            <stop offset="95%" stopColor={chartColor} stopOpacity={0} />
           </linearGradient>
         </defs>
         <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
@@ -103,7 +92,7 @@ export function FundValueChart({ data, bookCost }: FundValueChartProps) {
         <Area
           type="monotone"
           dataKey="value"
-          stroke={isPositive ? '#10b981' : '#ef4444'}
+          stroke={chartColor}
           strokeWidth={2}
           fillOpacity={1}
           fill="url(#colorFundValue)"

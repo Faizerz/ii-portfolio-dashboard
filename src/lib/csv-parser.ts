@@ -1,6 +1,11 @@
 import Papa from 'papaparse';
+import { convertSedolToIsin } from './sedol-to-isin';
 
-export interface Holding {
+/**
+ * CSV-specific holding interface (from II CSV export)
+ * This is a subset of the full Holding interface used elsewhere
+ */
+export interface CSVHolding {
   symbol: string;
   sedol: string;
   isin?: string;
@@ -12,7 +17,7 @@ export interface Holding {
 }
 
 export interface ParseResult {
-  holdings: Holding[];
+  holdings: CSVHolding[];
   errors: string[];
 }
 
@@ -52,7 +57,7 @@ function parseQuantity(value: string | undefined): number | null {
 
 export function parseHoldingsCSV(csvContent: string): ParseResult {
   const errors: string[] = [];
-  const holdings: Holding[] = [];
+  const holdings: CSVHolding[] = [];
 
   // Remove BOM characters
   const cleanedContent = csvContent.replace(/^\uFEFF+/, '');
@@ -100,12 +105,15 @@ export function parseHoldingsCSV(csvContent: string): ParseResult {
       return;
     }
 
-    // Extract ISIN if available (ii.co.uk exports may include it)
-    const isin = record['isin']?.trim() || undefined;
+    // Extract ISIN if available, or generate from SEDOL
+    const sedol = record['sedol'] || symbol;
+    const isin = record['isin']?.trim() ||
+                 (sedol ? convertSedolToIsin(sedol) : null) ||
+                 undefined;
 
     holdings.push({
       symbol,
-      sedol: record['sedol'] || symbol,
+      sedol,
       isin,
       name,
       quantity,

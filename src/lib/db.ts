@@ -31,6 +31,34 @@ function runMigrations(database: Database.Database) {
     database.exec('ALTER TABLE holdings ADD COLUMN morningstar_id TEXT');
     console.log('Added morningstar_id column to holdings table');
   }
+
+  // Check if fund_holdings table exists, if not create it
+  const tables = database
+    .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='fund_holdings'")
+    .all() as Array<{ name: string }>;
+
+  if (tables.length === 0) {
+    database.exec(`
+      CREATE TABLE fund_holdings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        fund_symbol TEXT NOT NULL,
+        holding_symbol TEXT,
+        holding_name TEXT NOT NULL,
+        cusip TEXT,
+        isin TEXT,
+        asset_type TEXT,
+        weight_percent REAL NOT NULL,
+        shares_held REAL,
+        market_value REAL,
+        as_of_date TEXT NOT NULL,
+        fetched_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(fund_symbol, holding_symbol, as_of_date)
+      );
+      CREATE INDEX idx_fund_holdings_symbol ON fund_holdings(fund_symbol);
+      CREATE INDEX idx_fund_holdings_date ON fund_holdings(fund_symbol, as_of_date);
+    `);
+    console.log('Created fund_holdings table');
+  }
 }
 
 function initializeSchema() {
@@ -355,4 +383,90 @@ export function updateHoldingMorningstarId(symbol: string, morningstarId: string
     UPDATE holdings SET morningstar_id = ? WHERE symbol = ?
   `);
   return stmt.run(morningstarId, symbol);
+}
+
+// Fund Holdings (underlying positions)
+export interface FundHoldingRow {
+  id?: number;
+  fund_symbol: string;
+  holding_symbol?: string | null;
+  holding_name: string;
+  cusip?: string | null;
+  isin?: string | null;
+  asset_type?: string | null;
+  weight_percent: number;
+  shares_held?: number | null;
+  market_value?: number | null;
+  as_of_date: string;
+  fetched_at?: string;
+}
+
+export function cacheFundHoldingsBatch(holdings: Array<Omit<FundHoldingRow, 'id' | 'fetched_at'>>) {
+  const database = getDb();
+  const stmt = database.prepare(`
+    INSERT OR REPLACE INTO fund_holdings
+      (fund_symbol, holding_symbol, holding_name, cusip, isin, asset_type, weight_percent, shares_held, market_value, as_of_date)
+    VALUES
+      (@fund_symbol, @holding_symbol, @holding_name, @cusip, @isin, @asset_type, @weight_percent, @shares_held, @market_value, @as_of_date)
+  `);
+
+  const insertMany = database.transaction((data: typeof holdings) => {
+    for (const holding of data) {
+      stmt.run(holding);
+    }
+  });
+
+  insertMany(holdings);
+}
+
+export function getLatestFundHoldings(fundSymbol: string): FundHoldingRow[] {
+  const database = getDb();
+
+  // Get the most recent as_of_date for this fund
+  const latestDateResult = database.prepare(`
+    SELECT MAX(as_of_date) as latest_date FROM fund_holdings WHERE fund_symbol = ?
+  `).get(fundSymbol) as { latest_date: string | null };
+
+  if (!latestDateResult?.latest_date) {
+    return [];
+  }
+
+  // Get all holdings for that date
+  return database.prepare(`
+    SELECT * FROM fund_holdings
+    WHERE fund_symbol = ? AND as_of_date = ?
+    ORDER BY weight_percent DESC
+  `).all(fundSymbol, latestDateResult.latest_date) as FundHoldingRow[];
+}
+
+export function hasRecentHoldings(fundSymbol: string, maxAgeDays: number = 7): boolean {
+  const database = getDb();
+
+  const result = database.prepare(`
+    SELECT MAX(fetched_at) as latest_fetch FROM fund_holdings WHERE fund_symbol = ?
+  `).get(fundSymbol) as { latest_fetch: string | null };
+
+  if (!result?.latest_fetch) {
+    return false;
+  }
+
+  const fetchDate = new Date(result.latest_fetch);
+  const now = new Date();
+  const daysDiff = (now.getTime() - fetchDate.getTime()) / (1000 * 60 * 60 * 24);
+
+  return daysDiff < maxAgeDays;
+}
+
+export function getFundsWithHoldings(): Array<{ fund_symbol: string; as_of_date: string; count: number }> {
+  const database = getDb();
+
+  return database.prepare(`
+    SELECT
+      fund_symbol,
+      MAX(as_of_date) as as_of_date,
+      COUNT(*) as count
+    FROM fund_holdings
+    GROUP BY fund_symbol
+    ORDER BY fund_symbol
+  `).all() as Array<{ fund_symbol: string; as_of_date: string; count: number }>;
 }

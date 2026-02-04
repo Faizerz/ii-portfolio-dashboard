@@ -1,45 +1,45 @@
-export interface Holding {
-  symbol: string;
-  sedol?: string;
-  name: string;
-  quantity: number;
-  bookCost: number;
-  currentPrice: number;
-  marketValue: number;
-  gainLoss: number;
-  gainLossPercent: number;
-  hasYahooSymbol: boolean;
-}
+/**
+ * Central type definitions for the ii-dashboard application
+ *
+ * This barrel file re-exports all types from organized modules.
+ * Import types using: import { TypeName } from '@/types'
+ */
 
-export interface PortfolioSummary {
-  totalValue: number;
-  totalInvested: number;
-  gainLoss: number;
-  gainLossPercent: number;
-}
+// Common types
+export type { DataQuality, FetchStatus, DateRange, PricePoint } from './common';
 
-export interface PortfolioHistoryPoint {
-  date: string;
-  value: number;
-  invested: number;
-}
+// Holdings types
+export type { Holding, PortfolioSummary, PortfolioHistoryPoint } from './holdings';
 
-export interface FundPerformancePoint {
-  date: string;
-  [symbol: string]: number | string;
-}
+// Fund types
+export type {
+  FundDetail,
+  FundHolding,
+  FundHoldingsData,
+  FundPerformancePoint,
+  FundMetadata,
+} from './funds';
 
-export interface FundDetail {
-  symbol: string;
-  sedol?: string;
-  name: string;
-  quantity: number;
-  bookCost: number;
-  currentPrice: number;
-  marketValue: number;
-  gainLoss: number;
-  gainLossPercent: number;
-  hasYahooSymbol: boolean;
-  priceHistory: Array<{ date: string; price: number }>;
-  valueHistory: Array<{ date: string; value: number }>;
-}
+// API types
+export type { PortfolioResponse, FundDetailResponse } from './api';
+
+// Database types
+export type {
+  HoldingRow,
+  TransactionRow,
+  PriceRow,
+  FundHoldingRow,
+} from './database';
+
+// Chart types
+export type { ChartDataPoint, PieChartDataPoint, TooltipPayload } from './charts';
+
+// Provider types
+export type {
+  HoldingsResult,
+  ProviderInfo,
+  ProgressUpdate,
+  FundFetchResult,
+  ProviderFetcher,
+  DetectionResult,
+} from './providers';

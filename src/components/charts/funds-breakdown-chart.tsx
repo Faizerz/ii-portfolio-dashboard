@@ -13,6 +13,7 @@ import {
   ReferenceLine,
 } from 'recharts';
 import { format, parseISO } from 'date-fns';
+import { CHART_COLORS, formatPercent, getChartColor, EmptyStates } from '@/lib/utils';
 
 interface FundBreakdownPoint {
   date: string;
@@ -25,29 +26,11 @@ interface FundsBreakdownChartProps {
   fundLabels?: Record<string, string>;
 }
 
-// Color palette for funds
-const COLORS = [
-  '#3b82f6', // blue
-  '#10b981', // emerald
-  '#f59e0b', // amber
-  '#ef4444', // red
-  '#8b5cf6', // violet
-  '#ec4899', // pink
-  '#06b6d4', // cyan
-  '#84cc16', // lime
-  '#f97316', // orange
-  '#6366f1', // indigo
-];
-
 export function FundsBreakdownChart({ data, funds, fundLabels = {} }: FundsBreakdownChartProps) {
   const [hiddenFunds, setHiddenFunds] = useState<Set<string>>(new Set());
 
   if (!data || data.length === 0 || funds.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-64 text-gray-500 dark:text-gray-400">
-        No fund data available
-      </div>
-    );
+    return <EmptyStates.noPerformanceData />;
   }
 
   const toggleFund = (fund: string) => {
@@ -60,11 +43,6 @@ export function FundsBreakdownChart({ data, funds, fundLabels = {} }: FundsBreak
       }
       return next;
     });
-  };
-
-  const formatPercent = (value: number) => {
-    const sign = value >= 0 ? '+' : '';
-    return `${sign}${value.toFixed(1)}%`;
   };
 
   const formatDate = (dateStr: string) => {
@@ -101,8 +79,8 @@ export function FundsBreakdownChart({ data, funds, fundLabels = {} }: FundsBreak
     }
 
     return (
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 shadow-lg">
-        <p className="font-medium text-gray-900 dark:text-white mb-2">{formattedDate}</p>
+      <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-lg">
+        <p className="font-medium text-gray-900 mb-2">{formattedDate}</p>
         {sortedPayload.map((entry) => (
           <div key={entry.dataKey} className="flex justify-between gap-4 text-sm py-0.5">
             <span style={{ color: entry.color }}>{truncateName(getDisplayName(entry.dataKey), 30)}</span>
@@ -127,18 +105,18 @@ export function FundsBreakdownChart({ data, funds, fundLabels = {} }: FundsBreak
               onClick={() => toggleFund(fund)}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all ${
                 isHidden
-                  ? 'bg-gray-100 dark:bg-gray-800 opacity-50'
-                  : 'bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  ? 'bg-gray-100 opacity-50'
+                  : 'bg-gray-50 hover:bg-gray-100'
               }`}
             >
               <span
                 className="w-4 h-4 rounded-sm flex-shrink-0"
-                style={{ backgroundColor: isHidden ? '#9ca3af' : COLORS[index % COLORS.length] }}
+                style={{ backgroundColor: isHidden ? '#9ca3af' : CHART_COLORS[index % CHART_COLORS.length] }}
               />
               <span className={`text-sm font-medium ${
                 isHidden
                   ? 'text-gray-400 line-through'
-                  : 'text-gray-700 dark:text-gray-200'
+                  : 'text-gray-700'
               }`}>
                 {truncateName(getDisplayName(fund), 35)}
               </span>
@@ -172,7 +150,7 @@ export function FundsBreakdownChart({ data, funds, fundLabels = {} }: FundsBreak
               key={fund}
               type="monotone"
               dataKey={fund}
-              stroke={COLORS[index % COLORS.length]}
+              stroke={CHART_COLORS[index % CHART_COLORS.length]}
               strokeWidth={2}
               dot={false}
               connectNulls
