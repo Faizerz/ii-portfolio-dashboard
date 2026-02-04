@@ -82,21 +82,69 @@ Historical data is cached locally in SQLite to minimize API calls. On first load
 ```
 src/
 ├── app/
-│   ├── api/           # API routes (portfolio-history, import, clear-data)
-│   ├── funds/         # Individual fund detail pages
-│   ├── import/        # CSV import page
-│   └── page.tsx       # Main dashboard
+│   ├── api/                    # API routes
+│   │   ├── portfolio-history/  # Portfolio value over time
+│   │   ├── funds/[symbol]/     # Fund details & holdings
+│   │   ├── import/             # CSV import endpoint
+│   │   └── clear-data/         # Database reset
+│   ├── funds/[symbol]/         # Individual fund detail pages
+│   ├── import/                 # CSV import page
+│   └── page.tsx                # Main portfolio dashboard
 ├── components/
-│   ├── charts/        # Portfolio and fund performance charts
-│   ├── tables/        # Holdings table
-│   └── ui/            # Reusable UI components (cards, buttons, date filter)
+│   ├── charts/                 # Recharts components
+│   │   ├── portfolio-allocation-chart.tsx
+│   │   ├── portfolio-chart.tsx
+│   │   ├── fund-price-chart.tsx
+│   │   ├── fund-value-chart.tsx
+│   │   ├── holdings-pie-chart.tsx
+│   │   └── funds-breakdown-chart.tsx
+│   ├── tables/                 # TanStack table components
+│   │   ├── holdings-table.tsx
+│   │   └── holdings-composition-table.tsx
+│   └── ui/                     # Reusable UI components
+│       ├── card.tsx, button.tsx, loading.tsx
+│       ├── date-range-filter.tsx
+│       └── summary-card.tsx
 ├── lib/
-│   ├── csv-parser.ts       # ii.co.uk CSV parsing
-│   ├── db.ts               # SQLite database operations
-│   ├── price-fetcher.ts    # Yahoo Finance price fetching
-│   └── morningstar-fetcher.ts  # Morningstar API integration
-└── types/             # TypeScript type definitions
+│   ├── providers/              # Universal fund holdings fetcher system
+│   │   ├── orchestrator.ts     # Waterfall fetching coordinator
+│   │   ├── yahoo-fetcher.ts    # Yahoo Finance (ETFs)
+│   │   ├── morningstar-fetcher.ts  # Morningstar UK (OEICs)
+│   │   ├── ft-scraper.ts       # Financial Times scraper
+│   │   └── ...                 # Other provider implementations
+│   ├── utils/                  # 🆕 Shared utilities (formatters, calculations, etc.)
+│   │   ├── formatters.ts       # Currency, percent, date formatting
+│   │   ├── charts/             # Chart utilities (colors, tooltips, labels)
+│   │   ├── tables/             # Table utilities (sorting)
+│   │   └── calculations/       # Business logic (portfolio, dates, holdings)
+│   ├── csv-parser.ts           # ii.co.uk CSV parsing
+│   ├── db.ts                   # SQLite database operations
+│   ├── price-fetcher.ts        # Yahoo Finance historical prices
+│   ├── holdings-fetcher.ts     # Legacy holdings fetcher
+│   └── morningstar-fetcher.ts  # Legacy Morningstar integration
+└── types/                      # 🆕 Centralized TypeScript type definitions
+    ├── index.ts                # Barrel export for all types
+    ├── common.ts               # Shared types (DataQuality, FetchStatus, etc.)
+    ├── holdings.ts             # Portfolio types (Holding, PortfolioSummary)
+    ├── funds.ts                # Fund types (FundDetail, FundHolding)
+    ├── api.ts                  # API request/response types
+    ├── database.ts             # Database row types
+    ├── charts.ts               # Chart component types
+    └── providers.ts            # Provider system types
 ```
+
+### Key Architectural Features
+
+- **🎯 Single Source of Truth**: All types defined once in `src/types/`
+- **♻️ DRY Utilities**: Shared utilities eliminate ~900 lines of duplicate code
+- **🔌 Universal Provider System**: Automatic fund holdings fetching with waterfall fallback
+- **💾 SQLite Caching**: Historical prices cached locally for performance
+- **📊 Recharts + TanStack**: Modern charting and table libraries
+- **🎨 Consistent Styling**: Shared formatters and chart utilities
+
+For detailed documentation:
+- [Type System Documentation](src/types/README.md)
+- [Utilities Documentation](src/lib/utils/README.md)
 
 ## Data Storage
 
