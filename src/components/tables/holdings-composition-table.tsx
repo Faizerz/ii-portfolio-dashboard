@@ -9,8 +9,8 @@ import {
   createColumnHelper,
   SortingState,
 } from '@tanstack/react-table';
-import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import type { FundHolding } from '@/types';
+import { formatPercent, formatNumber, getSortIcon } from '@/lib/utils';
 
 interface HoldingsCompositionTableProps {
   data: FundHolding[];
@@ -25,39 +25,17 @@ export function HoldingsCompositionTable({ data, showAll = false }: HoldingsComp
 
   const displayData = expanded ? data : data.slice(0, 10);
 
-  const formatPercent = (value: number) => {
-    return `${value.toFixed(2)}%`;
-  };
-
-  const formatNumber = (value: number | undefined) => {
-    if (value === undefined) return '-';
-    return new Intl.NumberFormat('en-GB', {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  };
-
-  const formatCurrency = (value: number | undefined) => {
-    if (value === undefined) return '-';
-    return new Intl.NumberFormat('en-GB', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  };
-
   const columns = useMemo(
     () => [
       columnHelper.accessor('name', {
         header: 'Holding',
         cell: (info) => (
           <div>
-            <div className="font-medium text-gray-900 dark:text-white">
+            <div className="font-medium text-gray-900">
               {info.getValue()}
             </div>
             {info.row.original.symbol && (
-              <div className="text-xs text-gray-500 dark:text-gray-400">
+              <div className="text-xs text-gray-500">
                 {info.row.original.symbol}
               </div>
             )}
@@ -74,14 +52,14 @@ export function HoldingsCompositionTable({ data, showAll = false }: HoldingsComp
           const value = info.getValue();
           return (
             <div className="flex items-center gap-2">
-              <div className="flex-1 min-w-[60px] max-w-[100px] bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+              <div className="flex-1 min-w-[60px] max-w-[100px] bg-gray-200 rounded-full h-2">
                 <div
-                  className="bg-blue-600 dark:bg-blue-500 h-2 rounded-full transition-all"
+                  className="bg-blue-600 h-2 rounded-full transition-all"
                   style={{ width: `${Math.min(value, 100)}%` }}
                 />
               </div>
-              <span className="text-gray-900 dark:text-gray-100 font-medium min-w-[50px]">
-                {formatPercent(value)}
+              <span className="text-gray-900 font-medium min-w-[50px]">
+                {formatPercent(value, { decimals: 2, showSign: false })}
               </span>
             </div>
           );
@@ -89,11 +67,21 @@ export function HoldingsCompositionTable({ data, showAll = false }: HoldingsComp
       }),
       columnHelper.accessor('sharesHeld', {
         header: 'Shares',
-        cell: (info) => formatNumber(info.getValue()),
+        cell: (info) => formatNumber(info.getValue(), { decimals: 0 }),
       }),
       columnHelper.accessor('marketValue', {
         header: 'Value',
-        cell: (info) => formatCurrency(info.getValue()),
+        cell: (info) => {
+          const value = info.getValue();
+          if (value === undefined) return '-';
+          // Holdings are often in USD
+          return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+          }).format(value);
+        },
       }),
     ],
     []
@@ -108,15 +96,6 @@ export function HoldingsCompositionTable({ data, showAll = false }: HoldingsComp
     getSortedRowModel: getSortedRowModel(),
   });
 
-  const getSortIcon = (columnId: string) => {
-    const sortedColumn = sorting.find((s) => s.id === columnId);
-    if (!sortedColumn) return <ArrowUpDown className="w-4 h-4 ml-1 opacity-50" />;
-    return sortedColumn.desc ? (
-      <ArrowDown className="w-4 h-4 ml-1" />
-    ) : (
-      <ArrowUp className="w-4 h-4 ml-1" />
-    );
-  };
 
   return (
     <div>
@@ -124,16 +103,16 @@ export function HoldingsCompositionTable({ data, showAll = false }: HoldingsComp
         <table className="w-full text-sm">
           <thead>
             {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id} className="border-b border-gray-200 dark:border-gray-700">
+              <tr key={headerGroup.id} className="border-b border-gray-200">
                 {headerGroup.headers.map((header) => (
                   <th
                     key={header.id}
                     onClick={header.column.getToggleSortingHandler()}
-                    className="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                    className="px-4 py-3 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-50"
                   >
                     <div className="flex items-center">
                       {flexRender(header.column.columnDef.header, header.getContext())}
-                      {getSortIcon(header.id)}
+                      {getSortIcon(header.id, sorting)}
                     </div>
                   </th>
                 ))}
@@ -144,10 +123,10 @@ export function HoldingsCompositionTable({ data, showAll = false }: HoldingsComp
             {table.getRowModel().rows.map((row) => (
               <tr
                 key={row.id}
-                className="border-b border-gray-100 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/30"
+                className="border-b border-gray-100 hover:bg-gray-50"
               >
                 {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className="px-4 py-3 text-gray-900 dark:text-gray-100">
+                  <td key={cell.id} className="px-4 py-3 text-gray-900">
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
                 ))}
@@ -161,7 +140,7 @@ export function HoldingsCompositionTable({ data, showAll = false }: HoldingsComp
         <div className="mt-4 text-center">
           <button
             onClick={() => setExpanded(!expanded)}
-            className="px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+            className="px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
           >
             {expanded ? `Show Top 10` : `Show All ${data.length} Holdings`}
           </button>
