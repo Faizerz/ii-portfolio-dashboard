@@ -15,6 +15,10 @@ A portfolio tracking dashboard for Interactive Investor (ii.co.uk) accounts. Imp
 - **Price Caching**: SQLite database caches prices for fast subsequent loads
 - **Dark Mode Support**: Automatic dark mode based on system preferences
 
+## Feature Requests & Roadmap
+
+Want to see what's coming next or suggest new features? Check out our [Feature Requests & Roadmap](FEATURE_REQUESTS.md) document for planned improvements and community suggestions.
+
 ## Screenshots
 
 ### Portfolio Overview
